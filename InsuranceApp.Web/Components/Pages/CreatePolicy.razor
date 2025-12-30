@@ -1,0 +1,106 @@
+﻿@page "/create-policy"
+@using InsuranceApp.Domain.Entities
+@using InsuranceApp.Infrastructure.Persistence
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext DbContext
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+@attribute [Authorize(Roles = "Admin,KinhDoanh,NhanVien")]
+<PageTitle>Tạo đơn bảo hiểm</PageTitle>
+
+<h1>Tạo đơn bảo hiểm mới</h1>
+
+<FluentCard Width="800px">
+    <EditForm Model="@policy" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <h3>1. Thông tin khách hàng</h3>
+        <FluentGrid Spacing="3">
+            <FluentGridItem xs="12" sm="6">
+                <FluentTextField Label="Họ tên chủ xe" @bind-Value="customer.FullName" Required="true" Width="100%" />
+            </FluentGridItem>
+            <FluentGridItem xs="12" sm="6">
+                <FluentTextField Label="Số điện thoại" @bind-Value="customer.PhoneNumber" Required="true" Width="100%" />
+            </FluentGridItem>
+            <FluentGridItem xs="12">
+                <FluentTextField Label="CCCD/CMND" @bind-Value="customer.IdentityCard" Width="100%" />
+            </FluentGridItem>
+        </FluentGrid>
+
+        <FluentDivider Style="margin: 20px 0" />
+
+        <h3>2. Thông tin xe & Bảo hiểm</h3>
+        <FluentGrid Spacing="3">
+            <FluentGridItem xs="12" sm="6">
+                <FluentTextField Label="Biển số xe" @bind-Value="policy.LicensePlate" Required="true" Placeholder="VD: 29A1-123.45" Width="100%" />
+            </FluentGridItem>
+            <FluentGridItem xs="12" sm="6">
+                <FluentSelect Label="Loại xe" @bind-Value="policy.VehicleType" TOption="string">
+                    <FluentOption Value="XeSo">Xe Số</FluentOption>
+                    <FluentOption Value="XeGa">Xe Tay Ga</FluentOption>
+                    <FluentOption Value="XeCon">Xe Côn Tay</FluentOption>
+                </FluentSelect>
+            </FluentGridItem>
+            <FluentGridItem xs="12" sm="6">
+                <FluentDatePicker Label="Ngày bắt đầu" @bind-Value="_tempStartDate" />
+            </FluentGridItem>
+            <FluentGridItem xs="12" sm="6">
+                <FluentNumberField Label="Giá tiền" @bind-Value="policy.Price" Adornment="₫" />
+            </FluentGridItem>
+        </FluentGrid>
+
+        <div style="margin-top: 20px; text-align: right;">
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">Lưu đơn hàng</FluentButton>
+        </div>
+    </EditForm>
+</FluentCard>
+
+@code {
+    private Customer customer = new();
+    private InsurancePolicy policy = new();
+
+    private DateTime? _tempStartDate;
+
+    protected override void OnInitialized()
+    {
+        _tempStartDate = DateTime.Now;
+        policy.Price = 66000; // Giá mặc định
+    }
+
+    private async Task HandleSubmit()
+    {
+        // 1. Logic lưu khách hàng (Kiểm tra nếu tồn tại thì dùng lại, chưa thì tạo mới)
+        var existingCust = await DbContext.Customers
+            .FirstOrDefaultAsync(c => c.IdentityCard == customer.IdentityCard);
+
+        if (existingCust == null)
+        {
+            DbContext.Customers.Add(customer);
+            await DbContext.SaveChangesAsync();
+            policy.CustomerId = customer.Id;
+        }
+        else
+        {
+            policy.CustomerId = existingCust.Id;
+        }
+
+        policy.StartDate = _tempStartDate ?? DateTime.Now;
+        policy.EndDate = policy.StartDate.AddYears(1);
+
+        // 2. Lưu thông tin bảo hiểm
+        policy.EndDate = policy.StartDate.AddYears(1);
+
+        // Lấy User ID hiện tại
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        policy.CreatedByUserId = user.Identity?.Name ?? "Unknown";
+
+        DbContext.InsurancePolicies.Add(policy);
+        await DbContext.SaveChangesAsync();
+
+        // 3. Thông báo và chuyển hướng
+        Nav.NavigateTo("/history");
+    }
+}

@@ -1,0 +1,33 @@
+﻿@page "/history"
+@using InsuranceApp.Domain.Entities
+@using InsuranceApp.Infrastructure.Persistence
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Microsoft.FluentUI.AspNetCore.Components.Icons
+@inject AppDbContext DbContext
+
+<h1>Lịch sử đơn hàng</h1>
+
+<FluentDataGrid Items="@policies" ResizableColumns="true" Pagination="@pagination">
+    <PropertyColumn Property="@(p => p.Id)" Sortable="true" title="#" />
+    <PropertyColumn Property="@(p => p.Customer.FullName)" Title="Khách hàng" Sortable="true" />
+    <PropertyColumn Property="@(p => p.LicensePlate)" Title="Biển số" />
+    <PropertyColumn Property="@(p => p.StartDate)" Format="dd/MM/yyyy" Title="Ngày bắt đầu" />
+    <PropertyColumn Property="@(p => p.Price)" Format="N0" Title="Giá (VND)" />
+    <TemplateColumn Title="Thao tác">
+        <FluentButton IconStart="@(new Icons.Regular.Size16.Print())" Appearance="Appearance.Lightweight">In</FluentButton>
+    </TemplateColumn>
+</FluentDataGrid>
+
+<FluentPaginator State="@pagination" />
+
+@code {
+    IQueryable<InsurancePolicy> policies;
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+    protected override void OnInitialized()
+    {
+        // Lưu ý: Trong thực tế nên dùng Service để gọi DB, không gọi trực tiếp từ View
+        policies = DbContext.InsurancePolicies.Include(p => p.Customer).AsQueryable();
+    }
+}

@@ -1,0 +1,45 @@
+﻿@page "/login"
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject NavigationManager Nav
+
+<FluentStack VerticalAlignment="VerticalAlignment.Center" HorizontalAlignment="HorizontalAlignment.Center" Style="height: 80vh;">
+    <FluentCard Width="400px">
+        <FluentHeader>ĐĂNG NHẬP HỆ THỐNG</FluentHeader>
+        <div style="margin: 20px 0;">
+            <FluentTextField @bind-Value="loginModel.Email" Label="Email" Style="width: 100%;" />
+            <FluentTextField @bind-Value="loginModel.Password" Label="Mật khẩu" TextFieldType="TextFieldType.Password" Style="width: 100%;" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <p style="color:var(--error);">@errorMessage</p>
+        }
+
+        <FluentButton Appearance="Appearance.Accent" OnClick="HandleLogin" Style="width: 100%;">Đăng nhập</FluentButton>
+    </FluentCard>
+</FluentStack>
+
+@code {
+    private LoginModel loginModel = new();
+    private string? errorMessage;
+
+    private async Task HandleLogin()
+    {
+        var result = await SignInManager.PasswordSignInAsync(loginModel.Email, loginModel.Password, false, false);
+        if (result.Succeeded)
+        {
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            errorMessage = "Sai tài khoản hoặc mật khẩu!";
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}

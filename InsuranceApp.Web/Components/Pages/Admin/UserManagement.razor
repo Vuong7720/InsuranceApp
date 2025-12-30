@@ -1,0 +1,64 @@
+﻿@page "/admin/users"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Admin")]
+@inject UserManager<IdentityUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+
+<FluentHeader>Quản lý tài khoản nhân viên</FluentHeader>
+
+<FluentStack Orientation="Orientation.Vertical" Spacing="10">
+    <FluentCard>
+        <h4>Tạo tài khoản mới</h4>
+        <FluentStack Orientation="Orientation.Horizontal" Spacing="5" VerticalAlignment="VerticalAlignment.Bottom">
+            <FluentTextField @bind-Value="newEmail" Label="Email" />
+            <FluentTextField @bind-Value="newPassword" Label="Mật khẩu" TextFieldType="TextFieldType.Password" />
+            <FluentSelect TOption="string" Label="Quyền" @bind-Value="selectedRole">
+                <FluentOption Value="KinhDoanh">Kinh Doanh</FluentOption>
+                <FluentOption Value="NhanVien">Nhân Viên</FluentOption>
+            </FluentSelect>
+            <FluentButton Appearance="Appearance.Accent" OnClick="CreateUser">Thêm User</FluentButton>
+        </FluentStack>
+    </FluentCard>
+
+    @* SỬA LỖI: Sử dụng trực tiếp UserManager.Users và xác định rõ Context *@
+    <FluentDataGrid Items="@UserManager.Users" TGridItem="IdentityUser" ResizableColumns="true">
+        <PropertyColumn Property="@(u => u.Email)" Title="Email" Sortable="true" />
+        <PropertyColumn Property="@(u => u.UserName)" Title="Tên đăng nhập" />
+
+        <TemplateColumn Title="Thao tác" Context="userItem">
+            <FluentButton IconStart="@(new Icons.Regular.Size16.Delete())"
+                          Appearance="Appearance.Lightweight"
+                          OnClick="@(() => DeleteUser(userItem))" />
+        </TemplateColumn>
+    </FluentDataGrid>
+</FluentStack>
+
+@code {
+    private string newEmail = "", newPassword = "", selectedRole = "NhanVien";
+
+    // Hàm tạo User
+    private async Task CreateUser()
+    {
+        if (string.IsNullOrEmpty(newEmail) || string.IsNullOrEmpty(newPassword)) return;
+
+        var user = new IdentityUser { UserName = newEmail, Email = newEmail };
+        var result = await UserManager.CreateAsync(user, newPassword);
+
+        if (result.Succeeded)
+        {
+            await UserManager.AddToRoleAsync(user, selectedRole);
+            newEmail = "";
+            newPassword = "";
+            // Grid sẽ tự cập nhật vì nó bind trực tiếp vào UserManager.Users
+        }
+    }
+
+    // Hàm xóa User (Bạn cần bổ sung hàm này để tránh lỗi compile)
+    private async Task DeleteUser(IdentityUser user)
+    {
+        if (user.Email == "admin@insurance.com") return; // Không cho xóa admin gốc
+        await UserManager.DeleteAsync(user);
+    }
+}
