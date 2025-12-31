@@ -1,25 +1,92 @@
-﻿@inherits LayoutComponentBase
-
+﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
 
 <FluentLayout>
     <FluentHeader>
         <h3>Hệ thống Bảo Hiểm Xe Máy</h3>
         <FluentSpacer />
-        </FluentHeader>
+
+        <AuthorizeView>
+            <Authorized>
+                <FluentMenuButton Text="@CurrentUserName"
+                                  Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size20.Person())">
+
+                    <div style="padding: 4px;">
+                        <form action="account/logout" method="post">
+                            <AntiforgeryToken />
+                            <FluentButton Type="ButtonType.Submit"
+                                          Appearance="Appearance.Stealth"
+                                          Style="width: 100%; text-align: left;">
+                                <FluentIcon Value="@(new Icons.Regular.Size20.ArrowExit())" Slot="start" Color="Color.Neutral" />
+                                Đăng xuất
+                            </FluentButton>
+                        </form>
+                    </div>
+
+                </FluentMenuButton>
+            </Authorized>
+            <NotAuthorized>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size20.Key())"
+                              OnClick="@(() => Nav.NavigateTo("/login"))">
+                    Đăng nhập
+                </FluentButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </FluentHeader>
 
     <FluentStack Orientation="Orientation.Horizontal" Width="100%">
         <FluentNavMenu Width="250" Collapsible="true">
             <FluentNavLink Href="/" Icon="@(new Icons.Regular.Size20.Home())">Trang chủ</FluentNavLink>
-            <FluentNavLink Href="/create-policy" Icon="@(new Icons.Regular.Size20.DocumentAdd())">Tạo đơn mới</FluentNavLink>
-            <FluentNavLink Href="/customers" Icon="@(new Icons.Regular.Size20.People())">Khách hàng</FluentNavLink>
-            
+
             <AuthorizeView Roles="Admin">
                 <FluentNavLink Href="/admin/users" Icon="@(new Icons.Regular.Size20.PersonLock())">Quản lý User</FluentNavLink>
+            </AuthorizeView>
+
+            <AuthorizeView>
+                <Authorized>
+                    <FluentNavLink Icon="@(new Icons.Regular.Size20.DocumentAdd())" href="/create-policy">Tạo đơn mới</FluentNavLink>
+                    <FluentNavLink Icon="@(new Icons.Regular.Size20.PersonSearch())" href="/customers">Khách hàng</FluentNavLink>
+                    <FluentNavLink Href="/history" Icon="@(new Icons.Regular.Size20.People())">Lịch sử</FluentNavLink>
+                </Authorized>
             </AuthorizeView>
         </FluentNavMenu>
 
         <FluentBodyContent>
-            @Body
+            <div style="padding: 16px;">
+                @Body
+            </div>
         </FluentBodyContent>
     </FluentStack>
+    <FluentMenuProvider/>
+    <FluentDialogProvider />
+    <FluentMessageBarProvider />
+    <FluentToastProvider />
 </FluentLayout>
+
+@code {
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    // Lấy trạng thái xác thực từ Routes.razor truyền xuống
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private string CurrentUserName = "User";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+
+            if (user.Identity is { IsAuthenticated: true })
+            {
+                // Lấy email hoặc tên hiển thị
+                CurrentUserName = user.Identity.Name ?? "Authenticated User";
+            }
+        }
+    }
+}

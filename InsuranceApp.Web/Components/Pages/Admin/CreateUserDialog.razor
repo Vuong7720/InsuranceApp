@@ -1,0 +1,57 @@
+﻿@using InsuranceApp.Web.Models
+@using Microsoft.AspNetCore.Identity
+@implements IDialogContentComponent<CreateUserModel>
+@inject UserManager<IdentityUser> UserManager
+
+<FluentDialogHeader ShowDismiss="true">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.PersonAdd())" />
+        <FluentLabel Typo="Typography.PaneHeader">Thêm nhân viên mới</FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentTextField @bind-Value="@Content.Email" Label="Email" Style="width: 100%;" />
+    <FluentTextField @bind-Value="@Content.Password" Label="Mật khẩu" TextFieldType="TextFieldType.Password" Style="width: 100%;" />
+    
+    <FluentSelect Label="Quyền hạn" TOption="string" @bind-Value="@Content.Role" Style="width: 100%;">
+        <FluentSelectOption Value="User">Nhân viên</FluentSelectOption>
+        <FluentSelectOption Value="Admin">Quản trị viên</FluentSelectOption>
+    </FluentSelect>
+
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <FluentMessageBar Intent="@MessageIntent.Error" AllowDismiss="false">
+            @Error
+        </FluentMessageBar>
+    }
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton Appearance="Appearance.Accent" OnClick="@SaveAsync">Lưu thông tin</FluentButton>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="@CancelAsync">Hủy</FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [Parameter] public CreateUserModel Content { get; set; } = default!;
+    [CascadingParameter] public FluentDialog Dialog { get; set; } = default!;
+    private string? Error;
+
+    private async Task SaveAsync()
+    {
+        var user = new IdentityUser { UserName = Content.Email, Email = Content.Email };
+        var result = await UserManager.CreateAsync(user, Content.Password);
+
+        if (result.Succeeded)
+        {
+            await UserManager.AddToRoleAsync(user, Content.Role);
+            await Dialog.CloseAsync(Content);
+        }
+        else
+        {
+            Error = result.Errors.FirstOrDefault()?.Description ?? "Lỗi không xác định";
+        }
+    }
+
+    private async Task CancelAsync() => await Dialog.CancelAsync();
+}

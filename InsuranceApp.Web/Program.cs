@@ -12,7 +12,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddHttpClient();
-builder.Services.AddFluentUIComponents(); // Đăng ký Fluent UI
+builder.Services.AddFluentUIComponents();
 
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -26,13 +26,6 @@ builder.Services.AddIdentityCore<IdentityUser>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = IdentityConstants.ApplicationScheme;
-    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-})
-    .AddIdentityCookies(); // Tạo các cookie cần thiết cho đăng nhập
-
 // 2. Cấu hình Identity (Giữ nguyên hoặc cập nhật theo mẫu dưới)
 builder.Services.AddIdentityCore<IdentityUser>(options => {
     options.Password.RequireDigit = false;
@@ -44,6 +37,18 @@ builder.Services.AddIdentityCore<IdentityUser>(options => {
     .AddEntityFrameworkStores<AppDbContext>()
     .AddSignInManager() // SignInManager phụ thuộc vào AddAuthentication ở trên
     .AddDefaultTokenProviders();
+
+
+
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+})
+    .AddIdentityCookies();
+
+builder.Services.AddAntiforgery();
 
 
 var app = builder.Build();
@@ -62,8 +67,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseAuthentication(); // Xác định bạn là ai
-app.UseAuthorization();  // Xác định bạn được làm gì
+app.MapPost("account/logout", async (SignInManager<IdentityUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.LocalRedirect("/");
+});
+
+app.UseAuthentication(); 
+app.UseAuthorization();  
 
 app.UseHttpsRedirection();
 
@@ -73,5 +84,28 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.UseAntiforgery();
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    // Tạo Role Admin nếu chưa có
+    if (!await roleManager.RoleExistsAsync("Admin"))
+        await roleManager.CreateAsync(new IdentityRole("Admin"));
+
+    // Tạo User Admin mẫu
+    var adminEmail = "admin";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    if (adminUser == null)
+    {
+        adminUser = new IdentityUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+        await userManager.CreateAsync(adminUser, "Admin123"); // Mật khẩu mẫu
+        await userManager.AddToRoleAsync(adminUser, "Admin");
+    }
+}
 
 app.Run();

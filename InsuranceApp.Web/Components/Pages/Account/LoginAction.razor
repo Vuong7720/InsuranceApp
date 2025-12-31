@@ -1,0 +1,28 @@
+﻿@page "/account/loginaction"
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@inject SignInManager<IdentityUser> SignInManager
+@inject UserManager<IdentityUser> UserManager
+@inject NavigationManager Nav
+
+@code {
+    [CascadingParameter]
+    public HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    public string Email { get; set; } = "";
+
+    [SupplyParameterFromQuery]
+    public string Password { get; set; } = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Trang này chạy ở chế độ tĩnh (Static), có quyền ghi Cookie
+        var result = await SignInManager.PasswordSignInAsync(Email, Password, true, false);
+
+        if (result.Succeeded)
+            Nav.NavigateTo("/", forceLoad: true);
+        else
+            Nav.NavigateTo("/login?error=true");
+    }
+}
